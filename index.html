@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>flappyBox by towc</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"/> <!--320-->
+
+  <style>
+   body {
+      background-color:#333;
+    }
+    #c {
+      position: absolute;
+      left:0;
+      top:calc(50% - 74vw);
+      width: 100%;
+    }
+    #error {
+    
+      position: absolute;
+      top: calc(50% - 20px );
+      left: 0;
+      width: 100%;
+      color: white;
+      text-align: center;
+      font: 40px Verdana;
+      
+      display: none;
+    }
+    @media screen and (min-width: 66.6vh){
+      
+        #c {
+        position:absolute;
+        top:0;
+        left:calc(50% - 33.3vh);
+        height:100%;
+        width: auto;
+      }
+    }
+    @media screen and (orientation: landscape) and (max-height: 500px ){
+    
+      #error {
+      
+        display: inline-block;
+      }
+      #c {
+      
+        display: none;
+      }
+    }</style>
+</head>
+<body>
+  <canvas id=c></canvas>
+  <p id=error>Please don't use lanscape mode</p>
+  <script src=index.js></script>
+</body>
+</html>
