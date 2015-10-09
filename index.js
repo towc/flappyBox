@@ -1,78 +1,118 @@
 var game = {};
 
 game.init = function(){
-  
+
   // unchanging variables
-  
+
   game.player = {};
   game.screen = {};
   game.controls = {};
   game.logics = {};
   game.time = {};
-  
+
   game.controls.interactKey = 32; //space
-  
+
   game.screen.canvas = document.getElementById( 'c' );
   game.screen.ctx = game.screen.canvas.getContext( '2d' );
-  
+
+  // Set context size equal to display size
+  game.screen.updateContext = function() {
+    // console.log('updateContext');
+    // console.log('cW', game.screen.canvas.clientWidth, 'cH', game.screen.canvas.clientHeight);
+
+    game.screen.canvas.width = game.screen.canvas.clientWidth;
+    game.screen.canvas.height = game.screen.canvas.width * (3/2);
+
+    if (game.player.dead) {
+      game.drawGameOver();
+    }
+  };
+
+  // Update the canvas context dimensions when window resizes
+  window.addEventListener('resize', function() {
+    // console.log('resize');
+
+    // Clear old timeout call in case it has not happened yet
+    if (game.screen.updateContextTimeout != undefined) {
+      window.clearTimeout(game.screen.updateContextTimeout);
+    }
+
+    game.screen.updateContextTimeout = window.setTimeout(game.screen.updateContext, game.time.updateContextDelay);
+  });
+
+  // Initial context update to avoid blurry initial 320x480 resolution
+  // This call timed out because clientWidth and Height are not accurate size at
+  //  first running of this code
+  window.setTimeout(game.screen.updateContext, 1);
+
   var w = 320,
       h = 480,
-      
+
       ww = window.innerWidth,
       wh = window.innerHeight,
-      
+
       i = 1;
-  
+
   //while( w * i <= ww && h * i <= wh ) ++i;
-  
+
   game.screen.canvas.width = game.logics.width = game.screen.width = w * i;
   game.screen.canvas.height = game.logics.height = game.screen.height = h * i;
   game.screen.halfw = game.logics.halfw = game.screen.width / 2;
   game.screen.halfh = game.screen.height / 2;
-  
+
+  // The size that the game is rendered at
+  // Used to determine how to scale graphics
+  game.screen.canvas.renderW = 320;
+  game.screen.canvas.renderH = 480;
+
   game.screen.colors = [ '#fff', '#000', '#f80808', 'rgba(120,120,120,.6)', '#eee' ];
   game.screen.fonts = [ '40px Verdana', '30px Verdana', '20px Verdana', '35px Verdana' ];
   game.screen.texts = [ 'jumps', 'Squashed at <score>', 'spacebar or touch to begin', 'highscore of <score>' ];
-  
+
   game.screen.lengths = [];
-  
+
   game.screen.ctx.font = game.screen.fonts[ 2 ];
   game.screen.lengths[ 0 ] = game.screen.ctx.measureText( game.screen.texts[ 0 ] ).width;
-  
+
   game.screen.ctx.font = game.screen.fonts[ 2 ];
   game.screen.lengths[ 1 ] = game.screen.ctx.measureText( game.screen.texts[ 2 ] ).width;
-  
+
   game.screen.midBezierPassingMultiplier = 2;
   game.screen.midBezierFriction = .8;
   game.screen.midBezierAccMultiplier = .1;
   game.screen.barSizeVel = .02;
-  
+
   game.screen.pillarHeight = 6;
-  
+
   game.logics.gravity = .3;
   game.logics.friction = .9;
   game.logics.pillars = [];
-  
+
   game.logics.basePillarWidth = 35;
   game.logics.addedPillarWidth = 50;
   game.logics.basePillarWait = 90;
   game.logics.addedPillarWait = 30;
   game.logics.lastPillarInitialWaitDecrementer = 2;
-  
+
   game.logics.playerThresholdVel = 6;
   game.logics.playerIncrementMultiplier = 1.01;
   game.logics.playerDecrementMultiplier = .992;
-  
+
   game.logics.playerThresholdJumpVel = 2;
-  
+
   game.time.updateMS = 16;
-  
+
+  // Time to wait after a window resize before updating context
+  // This is to prevent some needless updating
+  //  while the window is resized
+  game.time.updateContextDelay = 90;// milliseconds
+
   game.reset(); // changing variables
-  
+
   game.controls.menuing = true;
-  
+
   // constants so that I don't have to calculate some stuff every time
-  game.constants = [ 
+  game.constants = [
     -game.player.size / 2,
     game.screen.halfw * 1.5 - game.screen.lengths[ 0 ] / 2,
     game.screen.height - 30,
@@ -82,27 +122,27 @@ game.init = function(){
     game.screen.halfw - game.screen.lengths[ 1 ] / 2  ]
 
   game.anim(); // start
-  
+
   //event listeners
-  
+
   game.controls.interact = function(){
-    
+
     if( game.controls.menuing )
       game.controls.menuing = false;
-  
+
     if( game.player.dead ){
       game.reset();
       game.anim();
     } else if( game.controls.canInteract ) game.controls.interacted = true;
   }
-  
+
   window.addEventListener( 'keydown', function( e ){
-  
+
     if( e.keyCode === game.controls.interactKey )
       game.controls.interact();
   } );
   window.addEventListener( 'touchstart', game.controls.interact );
-  
+
   if( !localStorage.game_highScore )
     localStorage.game_highScore = 0;
 }
@@ -112,35 +152,35 @@ game.reset = function(){
   game.controls.interacted = false;
   game.controls.lastInteraction = 0;
   game.controls.menuing = false;
-  
+
   game.player.dead = false;
-  
+
   game.player.x = game.logics.halfw * 3 / 2;
   game.player.y = game.logics.height - 100;
   game.player.vx = 0;
   game.player.vy = -3;
   game.player.ax = 0;
   game.player.ay = -.0005;
-  
+
   game.player.size = 18;
   game.player.side = 1;
   game.player.rotation = 0;
-  
+
   game.player.usedJumps = 0;
   game.player.maxJumps = 5;
-  
+
   game.logics.pillars.length = 0;
   game.logics.lastPillar = 300;
   game.logics.lastPillarSide = 1;
   game.logics.lastPillarInitialWait = 60;
-  
+
   game.screen.midBezier = 0;
   game.screen.midBezierVel = 0;
-  
+
   game.screen.barSize = 1;
-  
+
   game.logics.score = 0;
-  
+
   game.time.now = Date.now();
   game.time.leftOverMS = 0;
 }
@@ -148,61 +188,74 @@ game.anim = function(){
 
   if( !game.player.dead ) window.requestAnimationFrame( game.anim );
   else return game.over();
-  
+
   var now = Date.now(),
       elapsed = game.time.leftOverMS + ( now - game.time.now );
-  
+
   if( elapsed > 50 )
     elapsed = 0;
-  
+
   while( elapsed > game.time.updateMS && !game.player.dead ){
-  
+
     game.updatePlayer();
     if( !game.controls.menuing ) game.updatePillars();
-    
+
     elapsed -= game.time.updateMS;
   }
-  
+
   if( game.player.dead )
     return game.over();
-  
+
   game.time.leftOverMS = elapsed;
   game.time.now = now;
-  
+
   game.drawBackground();
   game.drawPillars();
   game.drawPlayer();
   game.drawTexts();
 }
 
-game.over = function(){
-  
+game.drawGameOver = function() {
   var ctx = game.screen.ctx;
-  
+
+  game.drawBackground();
+  game.drawPillars();
+  game.drawPlayer();
+  game.drawTexts();
+
+  ctx.save();
+
   ctx.globalCompositeOperation = 'source-over';
+  game.scaleContext();
 
   ctx.fillStyle = game.screen.colors[ 3 ];
   ctx.fillRect( 0, 0, game.screen.width, game.screen.height );
-  
+
   ctx.fillStyle = game.screen.colors[ 4 ];
   ctx.font = game.screen.fonts[ 3 ];
   var text = game.screen.texts[ 1 ].replace( '<score>', game.logics.score );
   ctx.fillText( text, game.screen.halfw - ctx.measureText( text ).width / 2, game.screen.halfh - 20 );
-  
+
+  ctx.font = game.screen.fonts[ 2 ];
+  text = game.screen.texts[ 3 ].replace( '<score>', localStorage.game_highScore );
+  ctx.fillText( text, game.screen.halfw - ctx.measureText( text ).width / 2, game.screen.halfh + 20 );
+
+  ctx.restore();
+};
+
+game.over = function(){
   var highscore = +localStorage.game_highScore;
   if( game.logics.score > highscore )
     localStorage.game_highScore = game.logics.score;
-  
-  ctx.font = game.screen.fonts[ 2 ];
-  text = game.screen.texts[ 3 ].replace( '<score>', localStorage.game_highScore );
-  ctx.fillText( text, game.screen.halfw - ctx.measureText( text ).width / 2, game.screen.halfh + 20 ); 
+
+  game.drawGameOver();
 }
 game.updatePlayer = function(){
-  
+
   var player = game.player;
 
   var didntWarp = false;
-  
+
   if( player.x < -player.size ){
     player.x += game.logics.width + player.size;
     player.vx *= .8;
@@ -210,52 +263,52 @@ game.updatePlayer = function(){
     player.x -= game.logics.width + player.size;
     player.vx *= .8;
   } else didntWarp = true;
-  
+
   var newSide = player.x < game.logics.halfw ? 1 : -1;
-  
+
   if( newSide !== player.side && didntWarp ){
-    
+
     player.ax = 0;
     player.usedJumps = 0;
-    
+
     game.screen.midBezierVel = player.vx * game.screen.midBezierPassingMultiplier;
     game.screen.midBezier = 0;
   }
-  
+
   player.side = newSide;
-  
+
   if( Math.abs( player.vx ) > game.logics.playerThresholdVel ) player.vx *= game.logics.playerDecrementMultiplier;
   else player.vx *= game.logics.playerIncrementMultiplier; // keep it constantish
-  
+
   if( !game.controls.menuing ) player.vy += player.ay;
-  
+
   player.x += player.vx += game.logics.gravity * player.side + ( player.ax *= game.logics.friction );
   player.rotation = Math.atan( player.vy / player.vx ); // it's symmetric so...
-  
+
   if( --game.controls.lastInteraction && game.controls.interacted && player.usedJumps < player.maxJumps ){
-  
+
     game.controls.lastInteraction = 10;
     game.controls.interacted = false;
-    
+
     ++player.usedJumps;
-    
+
     player.ax = -player.side / 3;
     player.vx -= player.side * 2;
     if( Math.sign( player.vx ) === player.side || Math.abs( player.vx ) < game.logics.playerThresholdJumpVel )
       player.vx = -player.side * 2;
-  
+
   }
 }
 game.updatePillars = function(){
-  
+
   var player = game.player;
 
   game.logics.lastPillar += player.vy;
-  
+
   if( game.logics.lastPillar <= 0 ){
-    
+
     var num = 0;
-    
+
     do {
       if( Math.random() < .7 ) game.logics.lastPillarSide *= -1;
 
@@ -284,29 +337,29 @@ game.updatePillars = function(){
         game.logics.pillars.push( pillar );
 
       // just a smoothener so mplethat it's easier in the beginning
-      if( game.logics.lastPillarInitialWait > 0 ) 
+      if( game.logics.lastPillarInitialWait > 0 )
         game.logics.lastPillarInitialWait -= game.logics.lastPillarInitialWaitDecrementer;
       game.logics.lastPillar = game.logics.lastPillarInitialWait + ( game.logics.basePillarWait + game.logics.addedPillarWait * Math.random() ) |0;
-      
+
       ++num;
     } while( Math.random() < .1 && num < 2 );
   }
   for( var i = 0; i < game.logics.pillars.length; ++i ){
-  
+
     var pillar = game.logics.pillars[ i ];
-    
+
     if( pillar.dead ) continue;
-    
+
     pillar.y -= player.vy; // if you go towards something it's as if they went towards you
-    
+
     if( pillar.y > game.logics.height ){
       pillar.dead = true;
-      
+
     } else if( pillar.y > player.y && pillar.y + player.vy < player.y ){
-      
-      
+
+
       if( ( player.x > pillar.x && player.x < pillar.x + pillar.w ) || ( pillar.warping && ( player.x <= pillar.warpLeft ) ) ){
-        
+
         player.dead = true;
       } else {
         ++game.logics.score
@@ -314,15 +367,24 @@ game.updatePillars = function(){
     }
   }
 }
+
+game.scaleContext = function() {
+    var scale = game.screen.canvas.width / game.screen.canvas.renderW
+    game.screen.ctx.scale(scale, scale);
+};
+
 game.drawBackground = function(){
-  
+
   game.screen.midBezier += game.screen.midBezierVel -= game.screen.midBezier * game.screen.midBezierAccMultiplier;
   game.screen.midBezierVel *= game.screen.midBezierFriction;
-  
+
   var ctx = game.screen.ctx;
 
+  ctx.save();
+  game.scaleContext();
+
   ctx.globalCompositeOperation = 'source-over';
-  
+
   ctx.fillStyle = game.screen.colors[ 0 ];
   ctx.fillRect( 0, 0, game.screen.halfw + ( game.screen.midBezier > 0 ? ( game.screen.midBezier / 2 )|0 : 0 ), game.screen.height );
 
@@ -334,70 +396,84 @@ game.drawBackground = function(){
   ctx.lineTo( game.screen.halfw, game.screen.height );
   ctx.quadraticCurveTo( game.screen.halfw + game.screen.midBezier, game.player.y, game.screen.halfw, 0 );
   ctx.fill();
+
+  ctx.restore();
 }
 game.drawPillars = function(){
-  
+
   var ctx = game.screen.ctx;
+
+  ctx.save();
+  game.scaleContext();
 
   ctx.globalCompositeOperation = 'source-over';
   ctx.fillStyle = game.screen.colors[ 2 ];
-  
+
   for( var i = 0; i < game.logics.pillars.length; ++i ){
-  
+
     var pillar = game.logics.pillars[ i ];
-    
+
     if( !pillar.dead ){
       ctx.fillRect( pillar.x, pillar.y, pillar.w, game.screen.pillarHeight );
       if( pillar.warping )
         ctx.fillRect( 0, pillar.y, pillar.warpLeft, game.screen.pillarHeight );
     }
   }
+
+  ctx.restore();
 }
 game.drawPlayer = function(){
-  
+
   var ctx = game.screen.ctx,
       player = game.player;
-  
-  ctx.globalCompositeOperation = 'difference';
-  
-  ctx.fillStyle = game.screen.colors[ 0 ];
+
   ctx.save();
+  game.scaleContext();
+
+  ctx.globalCompositeOperation = 'difference';
+
+  ctx.fillStyle = game.screen.colors[ 0 ];
   ctx.translate( player.x, player.y );
   ctx.rotate( player.rotation );
   ctx.fillRect( game.constants[ 0 ], game.constants[ 0 ], player.size, player.size ); // -player.size / 2;
-  ctx.restore();
 
+  ctx.restore();
 }
 game.drawTexts = function(){
-  
+
   var ctx = game.screen.ctx;
 
+  ctx.save();
+  game.scaleContext();
+
   ctx.globalCompositeOperation = 'difference';
-  
+
   ctx.fillStyle = game.screen.colors[ 0 ];
-  
+
   var prop = game.screen.barSize - ( 1 - game.player.usedJumps / game.player.maxJumps );
-  
+
   if( prop < 0 )
     game.screen.barSize += game.screen.barSizeVel;
   else if( prop > game.screen.barSizeVel )
     game.screen.barSize -= game.screen.barSizeVel;
-  
+
   ctx.font = game.screen.fonts[ 2 ];
-  
-  ctx.fillText( game.screen.texts[ 0 ], game.constants[ 1 ], game.constants[ 2 ] ); // game.screen.halfw * 1.5 - game.screen.lengths[ 0 ] / 2; game.screen.height - 30; 
+
+  ctx.fillText( game.screen.texts[ 0 ], game.constants[ 1 ], game.constants[ 2 ] ); // game.screen.halfw * 1.5 - game.screen.lengths[ 0 ] / 2; game.screen.height - 30;
   ctx.fillRect( game.constants[ 3 ], game.constants[ 4 ], game.screen.barSize * game.constants[ 5 ], 25 ); // game.screen.halfw * 1.5 - game.screen.lenghts[ 0 ] / 2 - 5; game.screen.height - 48; game.screen.lengths[ 0 ] + 10
-  
+
   ctx.font = game.screen.fonts[ 1 ];
-  
+
   var text = game.logics.score;
   ctx.fillText( text, game.screen.halfw - ctx.measureText( text ).width / 2, 80 );
-  
+
   if( game.controls.menuing ){
-  
+
     ctx.font = game.screen.fonts[ 2 ];
     ctx.fillText( game.screen.texts[ 2 ], game.constants[ 6 ], game.screen.halfh ); // game.screen.halfw - game.screen.lengths[ 1 ] / 2
   }
+
+  ctx.restore();
 }
 
 game.init();
